@@ -1,13 +1,11 @@
 from typing import Any, Dict
 
-from racetrack_commons.plugin.core import PluginCore
-
 from deployer import DockerDaemonDeployer
 from monitor import DockerDaemonMonitor
 from logs_streamer import DockerDaemonLogsStreamer
 
 
-class Plugin(PluginCore):
+class Plugin:
 
     def fatman_deployers(self) -> Dict[str, Any]:
         """
