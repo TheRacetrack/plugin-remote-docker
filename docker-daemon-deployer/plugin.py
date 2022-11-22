@@ -38,9 +38,11 @@ class Plugin:
         if home_dir.is_dir() and (self.plugin_dir / 'dockerconfig/config.json').is_file():
             docker_dir = home_dir / '.docker'
             docker_dir.mkdir(exist_ok=True)
-            shutil.copy(self.plugin_dir / 'dockerconfig/config.json', docker_dir / 'config.json')
-            (docker_dir / 'config.json').chmod(0o600)
-            logger.info('Docker Registry config has been prepared')
+            dest_config_file = docker_dir / 'config.json'
+            if not dest_config_file.exists():
+                shutil.copy(self.plugin_dir / 'dockerconfig/config.json', dest_config_file)
+                dest_config_file.chmod(0o600)
+                logger.info('Docker Registry config has been prepared')
 
     def fatman_deployers(self) -> Dict[str, Any]:
         """
