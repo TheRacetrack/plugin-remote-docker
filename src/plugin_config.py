@@ -11,6 +11,6 @@ class InfrastructureConfig(BaseModel, extra=Extra.forbid, arbitrary_types_allowe
 
 
 class PluginConfig(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=True):
-    infrastracture_targets: Dict[str, InfrastructureConfig]
-    docker_config: Optional[str]
-    ssh: Optional[Dict[str, str]]
+    infrastracture_targets: Dict[str, InfrastructureConfig] = None
+    docker_config: Optional[str] = None
+    ssh: Optional[Dict[str, str]] = None
