@@ -5,14 +5,18 @@ from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.shell import CommandOutputStream, CommandError
 from racetrack_commons.deploy.resource import fatman_resource_name
 
+from plugin_config import InfrastructureConfig
+
 logger = get_logger(__name__)
 
 
 class DockerDaemonLogsStreamer(LogsStreamer):
     """Source of a Fatman logs retrieved from a remote Docker container"""
 
-    def __init__(self):
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
         super().__init__()
+        self.infra_config = infra_config
+        self.infrastructure_target = infrastructure_target
         self.sessions: Dict[str, CommandOutputStream] = {}
 
     def create_session(self, session_id: str, resource_properties: Dict[str, str]):
@@ -30,7 +34,7 @@ class DockerDaemonLogsStreamer(LogsStreamer):
             if error.returncode != -15:  # ignore process Terminated on purpose
                 logger.error(f'command "{error.cmd}" failed with return code {error.returncode}')
 
-        cmd = f'docker logs "{container_name}" --follow --tail {tail}'
+        cmd = f'DOCKER_HOST={self.infra_config.docker_host} docker logs "{container_name}" --follow --tail {tail}'
         output_stream = CommandOutputStream(cmd, on_next_line=on_next_line, on_error=on_error)
         self.sessions[session_id] = output_stream
 

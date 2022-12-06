@@ -1,4 +1,3 @@
-import os
 import re
 from typing import Dict
 
@@ -19,6 +18,8 @@ from lifecycle.deployer.base import FatmanDeployer
 from lifecycle.deployer.secrets import FatmanSecrets
 from lifecycle.fatman.models_registry import read_fatman_family_model
 
+from plugin_config import InfrastructureConfig
+
 FATMAN_INTERNAL_PORT = 7000  # Fatman listening port seen from inside the container
 
 logger = get_logger(__name__)
@@ -26,15 +27,20 @@ logger = get_logger(__name__)
 
 class DockerDaemonDeployer(FatmanDeployer):
     """FatmanDeployer managing workloads on a remote docker instance"""
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
+        super().__init__()
+        self.infra_config = infra_config
+        self.infrastructure_target = infrastructure_target
 
-    def deploy_fatman(self,
-                      manifest: Manifest,
-                      config: Config,
-                      plugin_engine: PluginEngine,
-                      tag: str,
-                      runtime_env_vars: Dict[str, str],
-                      family: FatmanFamilyDto,
-                      ) -> FatmanDto:
+    def deploy_fatman(
+        self,
+        manifest: Manifest,
+        config: Config,
+        plugin_engine: PluginEngine,
+        tag: str,
+        runtime_env_vars: Dict[str, str],
+        family: FatmanFamilyDto,
+    ) -> FatmanDto:
         """Run Fatman as docker container on local docker"""
         if self.fatman_exists(manifest.name, manifest.version):
             self.delete_fatman(manifest.name, manifest.version)
@@ -46,9 +52,8 @@ class DockerDaemonDeployer(FatmanDeployer):
         family_model = read_fatman_family_model(family.name)
         auth_subject = get_auth_subject_by_fatman_family(family_model)
 
-        docker_daemon_host = os.environ.get('DOCKER_DAEMON_HOST_IP')
-        assert docker_daemon_host, 'DOCKER_DAEMON_HOST_IP environment variable must be set'
-        internal_name = f'{docker_daemon_host}:{fatman_port}'
+        assert self.infra_config.hostname, 'hostname of a docker daemon must be set'
+        internal_name = f'{self.infra_config.hostname}:{fatman_port}'
 
         common_env_vars = {
             'PUB_URL': config.internal_pub_url,
@@ -81,7 +86,8 @@ class DockerDaemonDeployer(FatmanDeployer):
             user_module_port = fatman_port + 4  # in order not to conflict with other fatmen or Racetrack services
             user_module_image = get_fatman_user_module_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag)
             shell(
-                f'docker run -d'
+                f'DOCKER_HOST={self.infra_config.docker_host}'
+                f' docker run -d'
                 f' --name {user_module_resource_name}'
                 f' -p {user_module_port}:7004'
                 f' {env_vars_cmd}'
@@ -91,7 +97,8 @@ class DockerDaemonDeployer(FatmanDeployer):
             )
 
         shell(
-            f'docker run -d'
+            f'DOCKER_HOST={self.infra_config.docker_host}'
+            f' docker run -d'
             f' --name {entrypoint_resource_name}'
             f' -p {fatman_port}:{FATMAN_INTERNAL_PORT}'
             f' {env_vars_cmd}'
@@ -111,6 +118,7 @@ class DockerDaemonDeployer(FatmanDeployer):
             manifest=manifest,
             internal_name=internal_name,
             image_tag=tag,
+            infrastructure_target=self.infrastructure_target,
         )
 
     def delete_fatman(self, fatman_name: str, fatman_version: str):
@@ -147,15 +155,17 @@ class DockerDaemonDeployer(FatmanDeployer):
                 return port
         return 8000
 
-    def save_fatman_secrets(self,
-                            fatman_name: str,
-                            fatman_version: str,
-                            fatman_secrets: FatmanSecrets,
-                            ):
+    def save_fatman_secrets(
+        self,
+        fatman_name: str,
+        fatman_version: str,
+        fatman_secrets: FatmanSecrets,
+    ):
         raise NotImplementedError("managing secrets is not supported on local docker")
 
-    def get_fatman_secrets(self,
-                           fatman_name: str,
-                           fatman_version: str,
-                           ) -> FatmanSecrets:
+    def get_fatman_secrets(
+        self,
+        fatman_name: str,
+        fatman_version: str,
+    ) -> FatmanSecrets:
         raise NotImplementedError("managing secrets is not supported on local docker")

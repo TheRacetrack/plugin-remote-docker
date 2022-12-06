@@ -1,3 +1,3 @@
 bundle:
-	cd docker-daemon-deployer &&\
+	cd src &&\
 	racetrack plugin bundle --out=..

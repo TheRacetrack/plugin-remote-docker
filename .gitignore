@@ -1,5 +1,2 @@
 *.zip
 /venv
-docker-daemon-deployer/sshconfig/*
-docker-daemon-deployer/dockerconfig/*
-docker-daemon-deployer/config.env
