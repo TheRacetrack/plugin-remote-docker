@@ -21,16 +21,18 @@ class Plugin:
 
     def __init__(self):
         self.plugin_config: PluginConfig = parse_yaml_file_datamodel(self.config_path, PluginConfig)
+        self.docker_config_dir: str = ''
 
         home_dir = Path('/home/racetrack')
         if home_dir.is_dir():
 
             if self.plugin_config.docker_config:
-                docker_dir = home_dir / '.docker'
+                docker_dir = home_dir / '.docker-plugin'
                 docker_dir.mkdir(exist_ok=True)
                 dest_config_file = docker_dir / 'config.json'
                 dest_config_file.write_text(self.plugin_config.docker_config)
                 dest_config_file.chmod(0o600)
+                self.docker_config_dir = docker_dir.as_posix()
                 logger.info('Docker Registry config has been prepared')
 
             if self.plugin_config.ssh:
@@ -55,7 +57,7 @@ class Plugin:
         """
         return {
             infra_name: InfrastructureTarget(
-                fatman_deployer=DockerDaemonDeployer(infra_name, infra_config),
+                fatman_deployer=DockerDaemonDeployer(infra_name, infra_config, self.docker_config_dir),
                 fatman_monitor=DockerDaemonMonitor(infra_name, infra_config),
                 logs_streamer=DockerDaemonLogsStreamer(infra_name, infra_config),
             )

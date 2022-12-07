@@ -27,10 +27,11 @@ logger = get_logger(__name__)
 
 class DockerDaemonDeployer(FatmanDeployer):
     """FatmanDeployer managing workloads on a remote docker instance"""
-    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig, docker_config_dir: str) -> None:
         super().__init__()
         self.infra_config = infra_config
         self.infrastructure_target = infrastructure_target
+        self.docker_config_dir = docker_config_dir
 
     def deploy_fatman(
         self,
@@ -76,7 +77,7 @@ class DockerDaemonDeployer(FatmanDeployer):
         env_vars_cmd = ' '.join([f'--env {env_name}="{env_val}"' for env_name, env_val in runtime_env_vars.items()])
 
         try:
-            shell('docker network create racetrack_default')
+            shell(f'DOCKER_HOST={self.infra_config.docker_host} docker network create racetrack_default')
         except CommandError as e:
             if e.returncode != 1:
                 raise e
@@ -86,7 +87,8 @@ class DockerDaemonDeployer(FatmanDeployer):
             user_module_port = fatman_port + 4  # in order not to conflict with other fatmen or Racetrack services
             user_module_image = get_fatman_user_module_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag)
             shell(
-                f'DOCKER_HOST={self.infra_config.docker_host}'
+                f'DOCKER_CONFIG={self.docker_config_dir}'
+                f' DOCKER_HOST={self.infra_config.docker_host}'
                 f' docker run -d'
                 f' --name {user_module_resource_name}'
                 f' -p {user_module_port}:7004'
@@ -97,7 +99,8 @@ class DockerDaemonDeployer(FatmanDeployer):
             )
 
         shell(
-            f'DOCKER_HOST={self.infra_config.docker_host}'
+            f'DOCKER_CONFIG={self.docker_config_dir}'
+            f' DOCKER_HOST={self.infra_config.docker_host}'
             f' docker run -d'
             f' --name {entrypoint_resource_name}'
             f' -p {fatman_port}:{FATMAN_INTERNAL_PORT}'
@@ -132,19 +135,17 @@ class DockerDaemonDeployer(FatmanDeployer):
         resource_name = fatman_resource_name(fatman_name, fatman_version)
         return self._container_exists(resource_name)
 
-    @staticmethod
-    def _container_exists(container_name: str) -> bool:
-        output = shell_output(f'docker ps -a --filter "name=^/{container_name}$" --format "{{{{.Names}}}}"')
+    def _container_exists(self, container_name: str) -> bool:
+        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps -a --filter "name=^/{container_name}$" --format "{{{{.Names}}}}"')
         return container_name in output.splitlines()
 
     def _delete_container_if_exists(self, container_name: str):
         if self._container_exists(container_name):
-            shell(f'docker rm -f {container_name}')
+            shell(f'DOCKER_HOST={self.infra_config.docker_host} docker rm -f {container_name}')
 
-    @staticmethod
-    def _get_next_fatman_port() -> int:
+    def _get_next_fatman_port(self) -> int:
         """Return next unoccupied port for Fatman"""
-        output = shell_output('docker ps --filter "name=^/fatman-" --format "{{.Names}} {{.Ports}}"')
+        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps --filter "name=^/fatman-" --format "{{.Names}} {{.Ports}}"')
         occupied_ports = set()
         for line in output.splitlines():
             match = re.fullmatch(r'fatman-(.+) .+:(\d+)->.*', line.strip())
