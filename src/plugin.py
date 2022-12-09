@@ -1,20 +1,20 @@
 from __future__ import annotations
 from pathlib import Path
+import sys
 from typing import Any
 
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.datamodel import parse_yaml_file_datamodel
 
-logger = get_logger(__name__)
-
-from plugin_config import PluginConfig
-try:
+if 'lifecycle' in sys.modules:
     from lifecycle.deployer.infra_target import InfrastructureTarget
     from deployer import DockerDaemonDeployer
     from monitor import DockerDaemonMonitor
     from logs_streamer import DockerDaemonLogsStreamer
-except ModuleNotFoundError:
-    logger.debug('Skipping Lifecycle\'s imports')
+
+from plugin_config import PluginConfig
+
+logger = get_logger(__name__)
 
 
 class Plugin:
