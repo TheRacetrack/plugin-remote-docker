@@ -7,8 +7,8 @@ from racetrack_client.manifest import Manifest
 from racetrack_client.utils.shell import CommandError, shell, shell_output
 from racetrack_client.utils.time import datetime_to_timestamp, now
 from racetrack_commons.api.tracing import get_tracing_header_name
-from racetrack_commons.deploy.image import get_fatman_image, get_fatman_user_module_image
-from racetrack_commons.deploy.resource import fatman_resource_name, fatman_user_module_resource_name
+from racetrack_commons.deploy.image import get_fatman_image
+from racetrack_commons.deploy.resource import fatman_resource_name
 from racetrack_commons.entities.dto import FatmanDto, FatmanStatus, FatmanFamilyDto
 from racetrack_commons.plugin.core import PluginCore
 from racetrack_commons.plugin.engine import PluginEngine
@@ -41,13 +41,13 @@ class DockerDaemonDeployer(FatmanDeployer):
         tag: str,
         runtime_env_vars: Dict[str, str],
         family: FatmanFamilyDto,
+        containers_num: int = 1,
     ) -> FatmanDto:
         """Run Fatman as docker container on local docker"""
         if self.fatman_exists(manifest.name, manifest.version):
             self.delete_fatman(manifest.name, manifest.version)
 
         fatman_port = self._get_next_fatman_port()
-        entrypoint_image_name = get_fatman_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag)
         entrypoint_resource_name = fatman_resource_name(manifest.name, manifest.version)
         deployment_timestamp = datetime_to_timestamp(now())
         family_model = read_fatman_family_model(family.name)
@@ -66,6 +66,9 @@ class DockerDaemonDeployer(FatmanDeployer):
         if config.open_telemetry_enabled:
             common_env_vars['OPENTELEMETRY_ENDPOINT'] = config.open_telemetry_endpoint
 
+        if containers_num > 1:
+            common_env_vars['FATMAN_USER_MODULE_HOSTNAME'] = self.get_container_name(entrypoint_resource_name, 1)
+
         conflicts = common_env_vars.keys() & runtime_env_vars.keys()
         if conflicts:
             raise RuntimeError(f'found illegal runtime env vars, which conflict with reserved names: {conflicts}')
@@ -82,35 +85,25 @@ class DockerDaemonDeployer(FatmanDeployer):
             if e.returncode != 1:
                 raise e
 
-        if manifest.docker and manifest.docker.dockerfile_path:
-            user_module_resource_name = fatman_user_module_resource_name(manifest.name, manifest.version)
-            user_module_port = fatman_port + 4  # in order not to conflict with other fatmen or Racetrack services
-            user_module_image = get_fatman_user_module_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag)
+        for container_index in range(containers_num):
+
+            container_name = self.get_container_name(entrypoint_resource_name, container_index)
+            image_name = get_fatman_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag, container_index)
+            ports_mapping = f'-p {fatman_port}:{FATMAN_INTERNAL_PORT}' if container_index == 0 else ''
+
             shell(
-                f'DOCKER_CONFIG={self.docker_config_dir}'
+                f' DOCKER_CONFIG={self.docker_config_dir}'
                 f' DOCKER_HOST={self.infra_config.docker_host}'
                 f' docker run -d'
-                f' --name {user_module_resource_name}'
-                f' -p {user_module_port}:7004'
+                f' --name {container_name}'
+                f' {ports_mapping}'
                 f' {env_vars_cmd}'
                 f' --pull always'
                 f' --network="racetrack_default"'
-                f' {user_module_image}'
+                f' --label fatman-name={manifest.name}'
+                f' --label fatman-version={manifest.version}'
+                f' {image_name}'
             )
-
-        shell(
-            f'DOCKER_CONFIG={self.docker_config_dir}'
-            f' DOCKER_HOST={self.infra_config.docker_host}'
-            f' docker run -d'
-            f' --name {entrypoint_resource_name}'
-            f' -p {fatman_port}:{FATMAN_INTERNAL_PORT}'
-            f' {env_vars_cmd}'
-            f' --pull always'
-            f' --network="racetrack_default"'
-            f' --label fatman-name={manifest.name}'
-            f' --label fatman-version={manifest.version}'
-            f' {entrypoint_image_name}'
-        )
 
         return FatmanDto(
             name=manifest.name,
@@ -125,15 +118,15 @@ class DockerDaemonDeployer(FatmanDeployer):
         )
 
     def delete_fatman(self, fatman_name: str, fatman_version: str):
-        base_resource_name = fatman_resource_name(fatman_name, fatman_version)
-        self._delete_container_if_exists(base_resource_name)
-        user_module = fatman_user_module_resource_name(fatman_name, fatman_version)
-        self._delete_container_if_exists(user_module)
-        self._delete_container_if_exists(f'{base_resource_name}-entrypoint')
+        entrypoint_resource_name = fatman_resource_name(fatman_name, fatman_version)
+        for container_index in range(2):
+            container_name = self.get_container_name(entrypoint_resource_name, container_index)
+            self._delete_container_if_exists(container_name)
 
     def fatman_exists(self, fatman_name: str, fatman_version: str) -> bool:
         resource_name = fatman_resource_name(fatman_name, fatman_version)
-        return self._container_exists(resource_name)
+        container_name = self.get_container_name(resource_name, 0)
+        return self._container_exists(container_name)
 
     def _container_exists(self, container_name: str) -> bool:
         output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps -a --filter "name=^/{container_name}$" --format "{{{{.Names}}}}"')
@@ -170,3 +163,10 @@ class DockerDaemonDeployer(FatmanDeployer):
         fatman_version: str,
     ) -> FatmanSecrets:
         raise NotImplementedError("managing secrets is not supported on local docker")
+
+    @staticmethod
+    def get_container_name(resource_name: str, container_index: int) -> str:
+        if container_index == 0:
+            return resource_name
+        else:
+            return f'{resource_name}-{container_index}'
