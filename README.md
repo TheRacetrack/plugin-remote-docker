@@ -24,7 +24,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
 
     Save the YAML configuration:
     ```yaml
-    infrastracture_targets:
+    infrastructure_targets:
       docker-daemon-appdb:
         hostname: 1.2.3.4
         docker_host: ssh://dev-c1

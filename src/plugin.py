@@ -46,13 +46,13 @@ class Plugin:
                 
                 logger.info('SSH config has been prepared')
         
-        self.infrastracture_targets = self.plugin_config.infrastracture_targets or {}
-        infra_num = len(self.infrastracture_targets)
+        self._infrastructure_targets = self.plugin_config.infrastructure_targets or {}
+        infra_num = len(self._infrastructure_targets)
         logger.info(f'Docker Daemon plugin loaded with {infra_num} infrastructure targets')
 
     def infrastructure_targets(self) -> dict[str, Any]:
         """
-        Infrastracture Targets (deployment targets) for Fatmen provided by this plugin
+        Infrastructure Targets (deployment targets) for Fatmen provided by this plugin
         :return dict of infrastructure name -> an instance of lifecycle.deployer.infra_target.InfrastructureTarget
         """
         return {
@@ -61,5 +61,5 @@ class Plugin:
                 fatman_monitor=DockerDaemonMonitor(infra_name, infra_config),
                 logs_streamer=DockerDaemonLogsStreamer(infra_name, infra_config),
             )
-            for infra_name, infra_config in self.infrastracture_targets.items()
+            for infra_name, infra_config in self._infrastructure_targets.items()
         }
