@@ -138,7 +138,7 @@ class DockerDaemonDeployer(FatmanDeployer):
 
     def _get_next_fatman_port(self) -> int:
         """Return next unoccupied port for Fatman"""
-        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps --filter "name=^/fatman-" --format "{{.Names}} {{.Ports}}"')
+        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps --filter "name=^/fatman-" --format "{{{{.Names}}}} {{{{.Ports}}}}"')
         occupied_ports = set()
         for line in output.splitlines():
             match = re.fullmatch(r'fatman-(.+) .+:(\d+)->.*', line.strip())
