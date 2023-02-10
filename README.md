@@ -15,7 +15,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     
     - Host IP or DNS hostname
     - [`DOCKER_HOST` string](https://docs.docker.com/engine/security/protect-access/), eg. `ssh://dev-c1`
-    - Credentials to the Docker Registry, where Fatman images are located -
+    - Credentials to the Docker Registry, where Job images are located -
       Docker `config.json` with your auth key to the Docker registry, if you need to get the images from a private registry.
     - SSH config entry (like `~/.ssh/config`) to reach your host
     - SSH private key to log in to the host,

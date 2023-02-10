@@ -3,7 +3,7 @@ from typing import Dict
 from lifecycle.monitor.base import LogsStreamer
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.shell import CommandOutputStream, CommandError
-from racetrack_commons.deploy.resource import fatman_resource_name
+from racetrack_commons.deploy.resource import job_resource_name
 
 from plugin_config import InfrastructureConfig
 
@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 class DockerDaemonLogsStreamer(LogsStreamer):
-    """Source of a Fatman logs retrieved from a remote Docker container"""
+    """Source of a Job logs retrieved from a remote Docker container"""
 
     def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
         super().__init__()
@@ -21,10 +21,10 @@ class DockerDaemonLogsStreamer(LogsStreamer):
 
     def create_session(self, session_id: str, resource_properties: Dict[str, str]):
         """Start a session transmitting messages to a client."""
-        fatman_name = resource_properties.get('fatman_name')
-        fatman_version = resource_properties.get('fatman_version')
+        job_name = resource_properties.get('job_name')
+        job_version = resource_properties.get('job_version')
         tail = resource_properties.get('tail')
-        container_name = fatman_resource_name(fatman_name, fatman_version)
+        container_name = job_resource_name(job_name, job_version)
 
         def on_next_line(line: str):
             self.broadcast(session_id, line)
