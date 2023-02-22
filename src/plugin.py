@@ -52,13 +52,13 @@ class Plugin:
 
     def infrastructure_targets(self) -> dict[str, Any]:
         """
-        Infrastructure Targets (deployment targets) for Fatmen provided by this plugin
+        Infrastructure Targets (deployment targets) for Jobs provided by this plugin
         :return dict of infrastructure name -> an instance of lifecycle.deployer.infra_target.InfrastructureTarget
         """
         return {
             infra_name: InfrastructureTarget(
-                fatman_deployer=DockerDaemonDeployer(infra_name, infra_config, self.docker_config_dir),
-                fatman_monitor=DockerDaemonMonitor(infra_name, infra_config),
+                job_deployer=DockerDaemonDeployer(infra_name, infra_config, self.docker_config_dir),
+                job_monitor=DockerDaemonMonitor(infra_name, infra_config),
                 logs_streamer=DockerDaemonLogsStreamer(infra_name, infra_config),
             )
             for infra_name, infra_config in self._infrastructure_targets.items()
