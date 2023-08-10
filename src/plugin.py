@@ -1,17 +1,14 @@
 from __future__ import annotations
 from pathlib import Path
-import sys
 from typing import Any
 
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.datamodel import parse_yaml_file_datamodel
+from lifecycle.deployer.infra_target import InfrastructureTarget
 
-if 'lifecycle' in sys.modules:
-    from lifecycle.deployer.infra_target import InfrastructureTarget
-    from deployer import DockerDaemonDeployer
-    from monitor import DockerDaemonMonitor
-    from logs_streamer import DockerDaemonLogsStreamer
-
+from deployer import DockerDaemonDeployer
+from monitor import DockerDaemonMonitor
+from logs_streamer import DockerDaemonLogsStreamer
 from plugin_config import PluginConfig
 
 logger = get_logger(__name__)
