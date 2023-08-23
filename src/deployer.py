@@ -47,14 +47,13 @@ class DockerDaemonDeployer(JobDeployer):
         if self.job_exists(manifest.name, manifest.version):
             self.delete_job(manifest.name, manifest.version)
 
-        job_port = self._get_next_job_port()
         entrypoint_resource_name = job_resource_name(manifest.name, manifest.version)
         deployment_timestamp = datetime_to_timestamp(now())
         family_model = read_job_family_model(family.name)
         auth_subject = get_auth_subject_by_job_family(family_model)
 
         assert self.infra_config.hostname, 'hostname of a docker daemon must be set'
-        internal_name = f'{self.infra_config.hostname}:{job_port}'
+        internal_name = f'{entrypoint_resource_name}:{JOB_INTERNAL_PORT}'
 
         common_env_vars = {
             'PUB_URL': config.internal_pub_url,
@@ -89,14 +88,14 @@ class DockerDaemonDeployer(JobDeployer):
 
             container_name = self.get_container_name(entrypoint_resource_name, container_index)
             image_name = get_job_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag, container_index)
-            ports_mapping = f'-p {job_port}:{JOB_INTERNAL_PORT}' if container_index == 0 else ''
 
+            docker_vars = f' DOCKER_HOST={self.infra_config.docker_host}'
+            if self.docker_config_dir:
+                docker_vars += f' DOCKER_CONFIG={self.docker_config_dir}'
             shell(
-                f' DOCKER_CONFIG={self.docker_config_dir}'
-                f' DOCKER_HOST={self.infra_config.docker_host}'
+                f'{docker_vars}'
                 f' docker run -d'
                 f' --name {container_name}'
-                f' {ports_mapping}'
                 f' {env_vars_cmd}'
                 f' --pull always'
                 f' --network="racetrack_default"'

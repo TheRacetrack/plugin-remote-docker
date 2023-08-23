@@ -1,6 +1,4 @@
-from __future__ import annotations
 from pathlib import Path
-from typing import Any
 
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.datamodel import parse_yaml_file_datamodel
@@ -9,7 +7,7 @@ from lifecycle.deployer.infra_target import InfrastructureTarget
 from deployer import DockerDaemonDeployer
 from monitor import DockerDaemonMonitor
 from logs_streamer import DockerDaemonLogsStreamer
-from plugin_config import PluginConfig
+from plugin_config import PluginConfig, InfrastructureConfig
 
 logger = get_logger(__name__)
 
@@ -43,20 +41,23 @@ class Plugin:
                 
                 logger.info('SSH config has been prepared')
         
-        self._infrastructure_targets = self.plugin_config.infrastructure_targets or {}
+        self._infrastructure_targets: dict[str, InfrastructureConfig] = self.plugin_config.infrastructure_targets or {}
         infra_num = len(self._infrastructure_targets)
         logger.info(f'Docker Daemon plugin loaded with {infra_num} infrastructure targets')
 
-    def infrastructure_targets(self) -> dict[str, Any]:
+    def infrastructure_targets(self) -> dict[str, InfrastructureTarget]:
         """
         Infrastructure Targets (deployment targets) for Jobs provided by this plugin
         :return dict of infrastructure name -> an instance of lifecycle.deployer.infra_target.InfrastructureTarget
         """
         return {
             infra_name: InfrastructureTarget(
+                name=infra_name,
                 job_deployer=DockerDaemonDeployer(infra_name, infra_config, self.docker_config_dir),
                 job_monitor=DockerDaemonMonitor(infra_name, infra_config),
                 logs_streamer=DockerDaemonLogsStreamer(infra_name, infra_config),
+                remote_gateway_url=infra_config.remote_gateway_url,
+                remote_gateway_token=infra_config.remote_gateway_token,
             )
             for infra_name, infra_config in self._infrastructure_targets.items()
         }

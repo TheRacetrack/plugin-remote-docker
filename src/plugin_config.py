@@ -1,5 +1,3 @@
-from typing import Dict, Optional
-
 from pydantic import BaseModel, Extra
 
 
@@ -8,9 +6,11 @@ class InfrastructureConfig(BaseModel, extra=Extra.forbid, arbitrary_types_allowe
     hostname: str
     # DOCKER_HOST variable, eg. "ssh://dev-host"
     docker_host: str
+    remote_gateway_url: str | None = None
+    remote_gateway_token: str | None = None
 
 
 class PluginConfig(BaseModel, extra=Extra.forbid, arbitrary_types_allowed=True):
-    infrastructure_targets: Dict[str, InfrastructureConfig] = None
-    docker_config: Optional[str] = None
-    ssh: Optional[Dict[str, str]] = None
+    infrastructure_targets: dict[str, InfrastructureConfig] = None
+    docker_config: str | None = None
+    ssh: dict[str, str] | None = None
