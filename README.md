@@ -16,8 +16,8 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     racetrack plugin install docker-daemon-deployer-*.zip
     ```
 
-3.  Install Racetrack's PUB gateway on a remote host to let the traffic in and dispatch it to the jobs.
-    Generate a strong password that will be used as a token to authorized only requests coming from the master Racetrack:
+3.  Install Racetrack's PUB gateway on a remote host, which will dispatch the traffic to the local jobs.
+    Generate a strong password that will be used as a token to authorize only the requests coming from the master Racetrack:
     ```shell
     REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
     ```
@@ -50,7 +50,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     - Fingerprint of the public key to be added to verified hosts.
       You can obtain it by logging in to your host and checking `~/.ssh/known_hosts`
 
-    Save the YAML configuration:
+    Save the YAML configuration of the plugin:
     ```yaml
     infrastructure_targets:
       docker-daemon-appdb:
