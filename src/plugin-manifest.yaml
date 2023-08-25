@@ -4,3 +4,4 @@ url: https://github.com/TheRacetrack/plugin-docker-daemon-deployer
 category: 'infrastructure'
 components:
   - 'lifecycle'
+  - 'image-builder'

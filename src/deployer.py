@@ -27,11 +27,10 @@ logger = get_logger(__name__)
 
 class DockerDaemonDeployer(JobDeployer):
     """JobDeployer managing workloads on a remote docker instance"""
-    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig, docker_config_dir: str) -> None:
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
         super().__init__()
         self.infra_config = infra_config
         self.infrastructure_target = infrastructure_target
-        self.docker_config_dir = docker_config_dir
 
     def deploy_job(
         self,
@@ -89,11 +88,8 @@ class DockerDaemonDeployer(JobDeployer):
             container_name = self.get_container_name(entrypoint_resource_name, container_index)
             image_name = get_job_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag, container_index)
 
-            docker_vars = f' DOCKER_HOST={self.infra_config.docker_host}'
-            if self.docker_config_dir:
-                docker_vars += f' DOCKER_CONFIG={self.docker_config_dir}'
             shell(
-                f'{docker_vars}'
+                f' DOCKER_HOST={self.infra_config.docker_host}'
                 f' docker run -d'
                 f' --name {container_name}'
                 f' {env_vars_cmd}'
