@@ -44,7 +44,7 @@ class Plugin:
         infra_num = len(self._infrastructure_targets)
         logger.info(f'Docker Daemon plugin loaded with {infra_num} infrastructure targets')
 
-    def infrastructure_targets(self) -> dict[str, InfrastructureTarget]:
+    def infrastructure_targets(self) -> dict[str, 'InfrastructureTarget']:
         """
         Infrastructure Targets (deployment targets) for Jobs provided by this plugin
         :return dict of infrastructure name -> an instance of lifecycle.deployer.infra_target.InfrastructureTarget
