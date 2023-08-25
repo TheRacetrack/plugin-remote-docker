@@ -16,7 +16,30 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     racetrack plugin install docker-daemon-deployer-*.zip
     ```
 
-3.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
+3.  Install Racetrack's PUB gateway on a remote host to let the traffic in and dispatch it to the jobs.
+    Generate a strong password that will be used as a token to authorized only requests coming from the master Racetrack:
+    ```shell
+    REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
+    ```
+    ```shell
+    docker pull ghcr.io/theracetrack/racetrack/pub:latest
+    docker rm -f pub  # make sure it's not running
+    docker run -d \
+      --name=pub \
+      --user=100000:100000 \
+      --env=AUTH_REQUIRED=true \
+      --env=AUTH_DEBUG=true \
+      --env=PUB_PORT=7105 \
+      --env=REMOTE_GATEWAY_MODE=true \
+      --env=REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD' \
+      -p 7105:7105 \
+      --restart=unless-stopped \
+      --network="racetrack_default" \
+      --add-host host.docker.internal:host-gateway \
+      ghcr.io/theracetrack/racetrack/pub:latest
+    ```
+
+4.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
     Prepare the following data:
     
     - Host IP or DNS hostname
@@ -33,6 +56,8 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
       docker-daemon-appdb:
         hostname: 1.2.3.4
         docker_host: ssh://dev-c1
+        remote_gateway_url: 'http://1.2.3.4:7105'
+        remote_gateway_token: '5tr0nG_PA55VoRD'
 
     ssh:
       config: |
@@ -51,7 +76,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
         |1|mAUt6K1PT+7n7=|6/qMO7XBgAP6zc= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDv22Cz4NasgSXblP57I=
     
     docker: 
-      docker_registry: 'registry.example.com'
+      docker_registry: 'docker.registry.example.com'
       username: 'DOCKER_USERNAME'
       password: 'READ_WRITE_TOKEN'
     ```
