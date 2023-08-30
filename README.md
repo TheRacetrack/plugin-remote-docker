@@ -22,8 +22,9 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
     ```
     ```shell
-    docker pull ghcr.io/theracetrack/racetrack/pub:latest
-    docker rm -f pub  # make sure it's not running
+    IMAGE=ghcr.io/theracetrack/racetrack/pub:latest
+    docker pull $IMAGE
+    docker rm -f pub || true
     docker run -d \
       --name=pub \
       --user=100000:100000 \
@@ -36,7 +37,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
       --restart=unless-stopped \
       --network="racetrack_default" \
       --add-host host.docker.internal:host-gateway \
-      ghcr.io/theracetrack/racetrack/pub:latest
+      $IMAGE
     ```
 
 4.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
