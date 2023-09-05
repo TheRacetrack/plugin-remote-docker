@@ -1,5 +1,4 @@
 import sys
-from pathlib import Path
 
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.datamodel import parse_yaml_file_datamodel
@@ -21,19 +20,6 @@ class Plugin:
     def __init__(self):
         self.plugin_config: PluginConfig = parse_yaml_file_datamodel(self.config_path, PluginConfig)
         self.docker_config_dir: str = ''
-
-        home_dir = Path('/home/racetrack')
-        if home_dir.is_dir():
-            if self.plugin_config.ssh:
-                ssh_dir = home_dir / '.ssh'
-                ssh_dir.mkdir(exist_ok=True)
-                
-                for filename, content in self.plugin_config.ssh.items():
-                    dest_file = ssh_dir / filename
-                    dest_file.write_text(content)
-                    dest_file.chmod(0o600)
-                
-                logger.info('SSH config has been prepared')
 
         docker_config = self.plugin_config.docker
         if docker_config and docker_config.docker_registry and docker_config.username:
