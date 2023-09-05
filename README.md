@@ -4,8 +4,6 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
 
 ## Setup
 
-### Use SSH to protect the Docker daemon socket
-
 1.  Install [racetrack client](https://pypi.org/project/racetrack-client/) and generate ZIP plugin by running:
     ```shell
     make bundle
@@ -16,31 +14,42 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     racetrack plugin install docker-daemon-deployer-*.zip
     ```
 
-3.  Install Racetrack's PUB gateway on a remote host, which will dispatch the traffic to the local jobs.
+3. Download docker client and keep it in the working directory:
+    ```shell
+    curl https://download.docker.com/linux/static/stable/x86_64/docker-24.0.5.tgz --output docker.tgz
+	tar -zxvf docker.tgz -C . --transform 's/^docker//' docker/docker
+	rm docker.tgz
+   ```
+   This binary will be mounted to the remote Pub container.
+
+4.  Install Racetrack's Pub gateway on a remote host, which will dispatch the traffic to the local jobs.
     Generate a strong password that will be used as a token to authorize only the requests coming from the master Racetrack:
     ```shell
     REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
     ```
     ```shell
     IMAGE=ghcr.io/theracetrack/racetrack/pub:latest
+    DOCKER_GID=$((getent group docker || echo 'docker:x:0') | cut -d: -f3)
     docker pull $IMAGE
-    docker rm -f pub || true
+    docker rm -f pub-remote || true
     docker run -d \
-      --name=pub \
-      --user=100000:100000 \
+      --name=pub-remote \
+      --user=100000:$DOCKER_GID \
       --env=AUTH_REQUIRED=true \
       --env=AUTH_DEBUG=true \
       --env=PUB_PORT=7105 \
       --env=REMOTE_GATEWAY_MODE=true \
       --env=REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD' \
       -p 7105:7105 \
+      --volume '/var/run/docker.sock:/var/run/docker.sock' \
+      --volume './docker:/opt/docker' \
       --restart=unless-stopped \
       --network="racetrack_default" \
       --add-host host.docker.internal:host-gateway \
       $IMAGE
     ```
 
-4.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
+5.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
     Prepare the following data:
     
     - Host IP or DNS hostname
@@ -55,31 +64,12 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     ```yaml
     infrastructure_targets:
       docker-daemon-appdb:
-        hostname: 1.2.3.4
-        docker_host: ssh://dev-c1
         remote_gateway_url: 'http://1.2.3.4:7105'
         remote_gateway_token: '5tr0nG_PA55VoRD'
 
-    ssh:
-      config: |
-        Host dev-c1
-          Hostname 1.2.3.4
-          User racetrack
-          Port 22
-          IdentityFile ~/.ssh/docker-daemon.key
-          Compression yes
-          IdentitiesOnly yes
-      docker-daemon.key: |
-        -----BEGIN OPENSSH PRIVATE KEY-----
-        IWONTTELLYOU=
-        -----END OPENSSH PRIVATE KEY-----
-      known_hosts: |
-        |1|mAUt6K1PT+7n7=|6/qMO7XBgAP6zc= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDv22Cz4NasgSXblP57I=
-    
     docker: 
       docker_registry: 'docker.registry.example.com'
       username: 'DOCKER_USERNAME'
       password: 'READ_WRITE_TOKEN'
     ```
 
-Find out more about [Protecting the Docker daemon socket](https://docs.docker.com/engine/security/protect-access/)
