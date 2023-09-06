@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timezone
 from typing import Callable
 
-from lifecycle.deployer.infra_target import remote_shell
+from lifecycle.infrastructure.infra_target import remote_shell
 from lifecycle.monitor.base import LogsStreamer
 from racetrack_client.log.logs import get_logger
 from racetrack_client.utils.shell import CommandError

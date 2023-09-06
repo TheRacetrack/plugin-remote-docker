@@ -4,7 +4,7 @@ from typing import Dict
 from lifecycle.auth.subject import get_auth_subject_by_job_family
 from lifecycle.config import Config
 from lifecycle.deployer.base import JobDeployer
-from lifecycle.deployer.infra_target import remote_shell
+from lifecycle.infrastructure.infra_target import remote_shell
 from lifecycle.deployer.secrets import JobSecrets
 from lifecycle.job.models_registry import read_job_family_model
 from plugin_config import InfrastructureConfig

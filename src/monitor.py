@@ -2,7 +2,7 @@ import re
 from typing import Callable, Iterable
 
 from lifecycle.config import Config
-from lifecycle.deployer.infra_target import remote_shell
+from lifecycle.infrastructure.infra_target import remote_shell
 from lifecycle.monitor.base import JobMonitor
 from lifecycle.monitor.health import check_until_job_is_operational, quick_check_job_condition
 from lifecycle.monitor.metric_parser import read_last_call_timestamp_metric, scrape_metrics
