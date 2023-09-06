@@ -38,7 +38,7 @@ class Plugin:
         return {
             infra_name: InfrastructureTarget(
                 name=infra_name,
-                job_deployer=DockerDaemonDeployer(infra_name, infra_config),
+                job_deployer=DockerDaemonDeployer(infra_name, infra_config, self.plugin_config),
                 job_monitor=DockerDaemonMonitor(infra_name, infra_config),
                 logs_streamer=DockerDaemonLogsStreamer(infra_name, infra_config),
                 remote_gateway_url=infra_config.remote_gateway_url,

@@ -7,7 +7,7 @@ from lifecycle.deployer.base import JobDeployer
 from lifecycle.infrastructure.infra_target import remote_shell
 from lifecycle.deployer.secrets import JobSecrets
 from lifecycle.job.models_registry import read_job_family_model
-from plugin_config import InfrastructureConfig
+from plugin_config import InfrastructureConfig, PluginConfig
 from racetrack_client.client.env import merge_env_vars
 from racetrack_client.log.logs import get_logger
 from racetrack_client.manifest import Manifest
@@ -27,8 +27,9 @@ logger = get_logger(__name__)
 
 class DockerDaemonDeployer(JobDeployer):
     """JobDeployer managing workloads on a remote docker instance"""
-    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig) -> None:
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig, plugin_config: PluginConfig) -> None:
         super().__init__()
+        self.plugin_config = plugin_config
         self.infra_config = infra_config
         self.infrastructure_target = infrastructure_target
 
@@ -45,6 +46,12 @@ class DockerDaemonDeployer(JobDeployer):
         """Run Job as docker container on local docker"""
         if self.job_exists(manifest.name, manifest.version):
             self.delete_job(manifest.name, manifest.version)
+
+        docker_config = self.plugin_config.docker
+        if docker_config and docker_config.docker_registry and docker_config.username:
+            self.remote_shell(f'echo "{docker_config.password}" | '
+                              f'/opt/docker login --username "{docker_config.username}" --password-stdin "{docker_config.docker_registry}"')
+            logger.info(f'Logged in to Docker Registry: {docker_config.docker_registry}')
 
         entrypoint_resource_name = job_resource_name(manifest.name, manifest.version)
         deployment_timestamp = datetime_to_timestamp(now())
