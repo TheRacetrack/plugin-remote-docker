@@ -27,7 +27,7 @@ class DockerDaemonLogsStreamer(LogsStreamer):
         """Start a session transmitting messages to a client."""
         job_name = resource_properties.get('job_name')
         job_version = resource_properties.get('job_version')
-        tail = resource_properties.get('tail')
+        tail = resource_properties.get('tail', 20)
         container_name = job_resource_name(job_name, job_version)
 
         def on_error(error: CommandError):
