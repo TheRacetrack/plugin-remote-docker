@@ -31,6 +31,9 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     IMAGE=ghcr.io/theracetrack/racetrack/pub:latest
     DOCKER_GID=$((getent group docker || echo 'docker:x:0') | cut -d: -f3)
     
+    mkdir -p .docker
+    chmod 777 .docker
+    
     docker network create racetrack_default || true
     docker pull $IMAGE
     docker rm -f pub-remote || true
@@ -45,6 +48,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
       -p 7105:7105 \
       --volume "/var/run/docker.sock:/var/run/docker.sock" \
       --volume "`pwd`/docker:/opt/docker" \
+      --volume "`pwd`/.docker:/.docker" \
       --restart=unless-stopped \
       --network="racetrack_default" \
       --add-host host.docker.internal:host-gateway \
@@ -60,7 +64,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     Save the YAML configuration of the plugin:
     ```yaml
     infrastructure_targets:
-      docker-daemon-appdb:
+      docker-daemon-1:
         remote_gateway_url: 'http://1.2.3.4:7105'
         remote_gateway_token: '5tr0nG_PA55VoRD'
 
