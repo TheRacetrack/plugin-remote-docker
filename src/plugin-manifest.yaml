@@ -1,6 +1,6 @@
-name: docker-daemon-deployer
+name: remote-docker
 version: '1.6.0'
-url: https://github.com/TheRacetrack/plugin-docker-daemon-deployer
+url: https://github.com/TheRacetrack/plugin-remote-docker
 category: 'infrastructure'
 components:
   - 'lifecycle'

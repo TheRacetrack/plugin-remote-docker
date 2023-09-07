@@ -1,4 +1,4 @@
-# Racetrack Plugin: Docker Daemon Infrastructure
+# Racetrack Plugin: Remote Docker Daemon Infrastructure
 
 A Racetrack plugin allowing to deploy services to remote Docker Daemon
 
@@ -11,7 +11,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
 
 2.  Activate the plugin in Racetrack Dashboard Admin page by uploading the zipped plugin file:
     ```shell
-    racetrack plugin install docker-daemon-deployer-*.zip
+    racetrack plugin install remote-docker-*.zip
     ```
 
 3.  Download docker client and keep it in the working directory:
