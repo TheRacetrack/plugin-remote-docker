@@ -19,7 +19,6 @@ class Plugin:
 
     def __init__(self):
         self.plugin_config: PluginConfig = parse_yaml_file_datamodel(self.config_path, PluginConfig)
-        self.docker_config_dir: str = ''
 
         docker_config = self.plugin_config.docker
         if docker_config and docker_config.docker_registry and docker_config.username:

@@ -82,9 +82,9 @@ class DockerDaemonMonitor(JobMonitor):
         except Exception as e:
             if logs_on_error:
                 logs = self.read_recent_logs(job)
-                raise RuntimeError(f'{e}\nJob logs:\n{logs}')
+                raise RuntimeError(f'{e}\nJob logs:\n{logs}') from e
             else:
-                raise RuntimeError(str(e))
+                raise RuntimeError(str(e)) from e
 
     def get_remote_job_address(self, job: JobDto) -> tuple[str, dict[str, str]]:
         if not self.infra_config.remote_gateway_url:
@@ -100,5 +100,5 @@ class DockerDaemonMonitor(JobMonitor):
         container_name = job_resource_name(job.name, job.version)
         return self.remote_shell(f'/opt/docker logs "{container_name}" --tail {tail}')
 
-    def remote_shell(self, cmd: str, workdir: str | None = None) -> str:
-        return remote_shell(cmd, self.infra_config.remote_gateway_url, self.infra_config.remote_gateway_token, workdir)
+    def remote_shell(self, cmd: str) -> str:
+        return remote_shell(cmd, self.infra_config.remote_gateway_url, self.infra_config.remote_gateway_token)
