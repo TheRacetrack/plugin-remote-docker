@@ -65,7 +65,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     ```yaml
     infrastructure_targets:
       docker-daemon-1:
-        remote_gateway_url: 'http://1.2.3.4:7105'
+        remote_gateway_url: 'http://1.2.3.4:7105/pub'
         remote_gateway_token: '5tr0nG_PA55VoRD'
 
     docker: 
