@@ -8,13 +8,18 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     ```shell
     make bundle
     ```
-
-2.  Activate the plugin in Racetrack Dashboard Admin page by uploading the zipped plugin file:
+    
+    Afterward, activate the plugin in Racetrack Dashboard Admin page by uploading the zipped plugin file:
     ```shell
     racetrack plugin install remote-docker-*.zip
     ```
+    
+    Alternatively, you can install the latest plugin by running:
+    ```shell
+    racetrack plugin install github.com/TheRacetrack/plugin-remote-docker
+    ```
 
-3.  Download docker client and keep it in the working directory:
+2.  Download docker client and keep it in the working directory:
     ```shell
     mkdir -p ~/racetrack
     cd ~/racetrack
@@ -24,7 +29,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
     ```
     This binary will be mounted to the remote Pub container.
 
-4.  Install Racetrack's Pub gateway on a remote host, which will dispatch the traffic to the local jobs.
+3.  Install Racetrack's Pub gateway on a remote host, which will dispatch the traffic to the local jobs.
     Generate a strong password that will be used as a token to authorize only the requests coming from the master Racetrack:
     ```shell
     REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
@@ -55,7 +60,7 @@ A Racetrack plugin allowing to deploy services to remote Docker Daemon
       $IMAGE
     ```
 
-5.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
+4.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
     Prepare the following data:
     
     - Host IP or DNS hostname
