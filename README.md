@@ -1,58 +1,80 @@
-# Racetrack Plugin: Docker Daemon Infrastructure
+# Racetrack Plugin: Remote Docker Daemon Infrastructure
 
 A Racetrack plugin allowing to deploy services to remote Docker Daemon
 
 ## Setup
 
-### Use SSH to protect the Docker daemon socket
+1.  Install [racetrack client](https://pypi.org/project/racetrack-client/) and generate ZIP plugin by running:
+    ```shell
+    make bundle
+    ```
+    
+    Afterward, activate the plugin in Racetrack Dashboard Admin page by uploading the zipped plugin file:
+    ```shell
+    racetrack plugin install remote-docker-*.zip
+    ```
+    
+    Alternatively, you can install the latest plugin by running:
+    ```shell
+    racetrack plugin install github.com/TheRacetrack/plugin-remote-docker
+    ```
 
-1.  Install `racetrack` client and generate ZIP plugin by running `make bundle`.
+2.  Download docker client and keep it in the working directory:
+    ```shell
+    mkdir -p ~/racetrack
+    cd ~/racetrack
+    curl https://download.docker.com/linux/static/stable/x86_64/docker-24.0.5.tgz --output docker.tgz
+    tar -zxvf docker.tgz -C . --transform 's/^docker//' docker/docker
+    rm docker.tgz
+    ```
+    This binary will be mounted to the remote Pub container.
 
-2.  Activate the plugin in Racetrack Dashboard Admin page by uploading the zipped plugin file.
+3.  Install Racetrack's Pub gateway on a remote host, which will dispatch the traffic to the local jobs.
+    Generate a strong password that will be used as a token to authorize only the requests coming from the master Racetrack:
+    ```shell
+    REMOTE_GATEWAY_TOKEN='5tr0nG_PA55VoRD'
+    IMAGE=ghcr.io/theracetrack/racetrack/pub:latest
+    DOCKER_GID=$((getent group docker || echo 'docker:x:0') | cut -d: -f3)
+    
+    mkdir -p .docker
+    chmod 777 .docker
+    
+    docker network create racetrack_default || true
+    docker pull $IMAGE
+    docker rm -f pub-remote || true
+    docker run -d \
+      --name=pub-remote \
+      --user=100000:$DOCKER_GID \
+      --env=AUTH_REQUIRED=true \
+      --env=AUTH_DEBUG=true \
+      --env=PUB_PORT=7105 \
+      --env=REMOTE_GATEWAY_MODE=true \
+      --env=REMOTE_GATEWAY_TOKEN="$REMOTE_GATEWAY_TOKEN" \
+      -p 7105:7105 \
+      --volume "/var/run/docker.sock:/var/run/docker.sock" \
+      --volume "`pwd`/docker:/opt/docker" \
+      --volume "`pwd`/.docker:/.docker" \
+      --restart=unless-stopped \
+      --network="racetrack_default" \
+      --add-host host.docker.internal:host-gateway \
+      $IMAGE
+    ```
 
-3.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
+4.  Go to Racetrack's Dashboard, Administration, Edit Config of the plugin.
     Prepare the following data:
     
     - Host IP or DNS hostname
-    - [`DOCKER_HOST` string](https://docs.docker.com/engine/security/protect-access/), eg. `ssh://dev-c1`
-    - Credentials to the Docker Registry, where Job images are located -
-      Docker `config.json` with your auth key to the Docker registry, if you need to get the images from a private registry.
-    - SSH config entry (like `~/.ssh/config`) to reach your host
-    - SSH private key to log in to the host,
-    - Fingerprint of the public key to be added to verified hosts.
-      You can obtain it by logging in to your host and checking `~/.ssh/known_hosts`
+    - Credentials to the Docker Registry, where Job images will be located.
 
-    Save the YAML configuration:
+    Save the YAML configuration of the plugin:
     ```yaml
     infrastructure_targets:
-      docker-daemon-appdb:
-        hostname: 1.2.3.4
-        docker_host: ssh://dev-c1
+      docker-daemon-1:
+        remote_gateway_url: 'http://1.2.3.4:7105/pub'
+        remote_gateway_token: '5tr0nG_PA55VoRD'
 
-    docker_config: |
-      {
-        "auths": {
-          "registry.example.com": {
-            "auth": "base64key=="
-          }
-        }
-      }
-
-    ssh:
-      config: |
-        Host dev-c1
-          Hostname 1.2.3.4
-          User racetrack
-          Port 22
-          IdentityFile ~/.ssh/docker-daemon.key
-          Compression yes
-          IdentitiesOnly yes
-      docker-daemon.key: |
-        -----BEGIN OPENSSH PRIVATE KEY-----
-        IWONTTELLYOU=
-        -----END OPENSSH PRIVATE KEY-----
-      known_hosts: |
-        |1|mAUt6K1PT+7n7=|6/qMO7XBgAP6zc= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDv22Cz4NasgSXblP57I=
+    docker: 
+      docker_registry: 'docker.registry.example.com'
+      username: 'DOCKER_USERNAME'
+      password: 'READ_WRITE_TOKEN'
     ```
-
-Find out more about [Protecting the Docker daemon socket](https://docs.docker.com/engine/security/protect-access/)

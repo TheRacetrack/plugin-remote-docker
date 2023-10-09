@@ -1,10 +1,17 @@
 import re
 from typing import Dict
 
+from lifecycle.auth.subject import get_auth_subject_by_job_family
+from lifecycle.config import Config
+from lifecycle.deployer.base import JobDeployer
+from lifecycle.infrastructure.infra_target import remote_shell
+from lifecycle.deployer.secrets import JobSecrets
+from lifecycle.job.models_registry import read_job_family_model
+from plugin_config import InfrastructureConfig, PluginConfig
 from racetrack_client.client.env import merge_env_vars
 from racetrack_client.log.logs import get_logger
 from racetrack_client.manifest import Manifest
-from racetrack_client.utils.shell import CommandError, shell, shell_output
+from racetrack_client.utils.shell import CommandError
 from racetrack_client.utils.time import datetime_to_timestamp, now
 from racetrack_commons.api.tracing import get_tracing_header_name
 from racetrack_commons.deploy.image import get_job_image
@@ -12,13 +19,6 @@ from racetrack_commons.deploy.resource import job_resource_name
 from racetrack_commons.entities.dto import JobDto, JobStatus, JobFamilyDto
 from racetrack_commons.plugin.core import PluginCore
 from racetrack_commons.plugin.engine import PluginEngine
-from lifecycle.auth.subject import get_auth_subject_by_job_family
-from lifecycle.config import Config
-from lifecycle.deployer.base import JobDeployer
-from lifecycle.deployer.secrets import JobSecrets
-from lifecycle.job.models_registry import read_job_family_model
-
-from plugin_config import InfrastructureConfig
 
 JOB_INTERNAL_PORT = 7000  # Job listening port seen from inside the container
 
@@ -27,11 +27,11 @@ logger = get_logger(__name__)
 
 class DockerDaemonDeployer(JobDeployer):
     """JobDeployer managing workloads on a remote docker instance"""
-    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig, docker_config_dir: str) -> None:
+    def __init__(self, infrastructure_target: str, infra_config: InfrastructureConfig, plugin_config: PluginConfig) -> None:
         super().__init__()
+        self.plugin_config = plugin_config
         self.infra_config = infra_config
         self.infrastructure_target = infrastructure_target
-        self.docker_config_dir = docker_config_dir
 
     def deploy_job(
         self,
@@ -47,14 +47,18 @@ class DockerDaemonDeployer(JobDeployer):
         if self.job_exists(manifest.name, manifest.version):
             self.delete_job(manifest.name, manifest.version)
 
-        job_port = self._get_next_job_port()
+        docker_config = self.plugin_config.docker
+        if docker_config and docker_config.docker_registry and docker_config.username:
+            self.remote_shell(f'echo "{docker_config.password}" | '
+                              f'/opt/docker login --username "{docker_config.username}" --password-stdin "{docker_config.docker_registry}"')
+            logger.info(f'Logged in to Docker Registry: {docker_config.docker_registry}')
+
         entrypoint_resource_name = job_resource_name(manifest.name, manifest.version)
         deployment_timestamp = datetime_to_timestamp(now())
         family_model = read_job_family_model(family.name)
         auth_subject = get_auth_subject_by_job_family(family_model)
 
-        assert self.infra_config.hostname, 'hostname of a docker daemon must be set'
-        internal_name = f'{self.infra_config.hostname}:{job_port}'
+        internal_name = f'{entrypoint_resource_name}:{JOB_INTERNAL_PORT}'
 
         common_env_vars = {
             'PUB_URL': config.internal_pub_url,
@@ -80,7 +84,7 @@ class DockerDaemonDeployer(JobDeployer):
         env_vars_cmd = ' '.join([f'--env {env_name}="{env_val}"' for env_name, env_val in runtime_env_vars.items()])
 
         try:
-            shell(f'DOCKER_HOST={self.infra_config.docker_host} docker network create racetrack_default')
+            self.remote_shell(f'/opt/docker network create racetrack_default')
         except CommandError as e:
             if e.returncode != 1:
                 raise e
@@ -89,14 +93,10 @@ class DockerDaemonDeployer(JobDeployer):
 
             container_name = self.get_container_name(entrypoint_resource_name, container_index)
             image_name = get_job_image(config.docker_registry, config.docker_registry_namespace, manifest.name, tag, container_index)
-            ports_mapping = f'-p {job_port}:{JOB_INTERNAL_PORT}' if container_index == 0 else ''
 
-            shell(
-                f' DOCKER_CONFIG={self.docker_config_dir}'
-                f' DOCKER_HOST={self.infra_config.docker_host}'
-                f' docker run -d'
+            self.remote_shell(
+                f'/opt/docker run -d'
                 f' --name {container_name}'
-                f' {ports_mapping}'
                 f' {env_vars_cmd}'
                 f' --pull always'
                 f' --network="racetrack_default"'
@@ -129,16 +129,16 @@ class DockerDaemonDeployer(JobDeployer):
         return self._container_exists(container_name)
 
     def _container_exists(self, container_name: str) -> bool:
-        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps -a --filter "name=^/{container_name}$" --format "{{{{.Names}}}}"')
+        output = self.remote_shell(f'/opt/docker ps -a --filter "name=^/{container_name}$" --format "{{{{.Names}}}}"')
         return container_name in output.splitlines()
 
     def _delete_container_if_exists(self, container_name: str):
         if self._container_exists(container_name):
-            shell(f'DOCKER_HOST={self.infra_config.docker_host} docker rm -f {container_name}')
+            self.remote_shell(f'/opt/docker rm -f {container_name}')
 
     def _get_next_job_port(self) -> int:
         """Return next unoccupied port for Job"""
-        output = shell_output(f'DOCKER_HOST={self.infra_config.docker_host} docker ps --filter "name=^/job-" --format "{{{{.Names}}}} {{{{.Ports}}}}"')
+        output = self.remote_shell(f'/opt/docker ps --filter "name=^/job-" --format "{{{{.Names}}}} {{{{.Ports}}}}"')
         occupied_ports = set()
         for line in output.splitlines():
             match = re.fullmatch(r'job-(.+) .+:(\d+)->.*', line.strip())
@@ -170,3 +170,6 @@ class DockerDaemonDeployer(JobDeployer):
             return resource_name
         else:
             return f'{resource_name}-{container_index}'
+
+    def remote_shell(self, cmd: str, workdir: str | None = None) -> str:
+        return remote_shell(cmd, self.infra_config.remote_gateway_url, self.infra_config.remote_gateway_token, workdir)
